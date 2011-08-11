@@ -1,8 +1,11 @@
 ﻿(function ($, window, document) {
+	"use strict";
+
 	var methods,
+			_local,
 			timeout,
 			defaults = {
-				time: 15* 60 * 1000, // time in miliseconds 15 mins in this case
+				time: 15 * 60 * 1000, // time in miliseconds 15 mins in this case
 				address: ''
 			},
 			settings;
@@ -10,12 +13,18 @@
 	methods = {
 		init: function (input) {
 			settings = $.extend(true, {}, defaults, input);
-      
-      if (!settings.address) { 
-        throw new Error ("No url address was specified.");
-      }
-      
-      // Call the request method
+
+			if (!settings.address) {
+				throw new Error("No url address was specified.");
+			}
+
+			if (!settings.onError) {
+				settings.onError = function (err) { throw new Error(err); };
+			} else if (typeof (settings.onError) !== 'function') {
+				throw new Error('The onError element provided is required to be a function');
+			}
+
+			// Call the request method
 			_local.request.call(this);
 		},
 
@@ -28,30 +37,26 @@
 		request: function () {
 			// Clears the timer set with setTimeout()
 			clearTimeout(timeout);
-      
-      // TODO: change this to be non jsonWebservice
-      // TODO: make use of deferreds
-      // TODO: Allow user to pass in what to do onError
-			$.jsonWebService({
+
+			var request = $.ajax({
 				url: settings.address,
+				type: 'POST',
 				data: {},
-				success: function (result) {
-					timeout = setTimeout(_local.request, settings.time);
-				},
-				error: function (err) {
-					$.notification({
-						attachTo: '#titleBarContainer',
-						position: { top: '1px' },
-						type: 'Warning',
-						displayMessage: 'Session Ping failed.'
-					});
-				}
+				contentType: 'application/json; charset=utf-8'
+			});
+
+			request.success(function () {
+				timeout = setTimeout(_local.request, settings.time);
+			});
+
+			request.error(function (err) {
+				settings.onError(err);
 			});
 		}
 	};
 
 	$.sessionPing = function () {
-		return this.methodCaller("sessionPing", methods, arguments);
+		return methods.init.apply(this, arguments);
 	};
 
 })(jQuery, window, document);
